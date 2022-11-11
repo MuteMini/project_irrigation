@@ -96,7 +96,12 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+	  if(!HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4)){
+		  printf("The pin is off\r\n");
+	  }else{
+		  printf("The pin is on\r\n");
+	  }
+	  HAL_Delay(10);
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -212,10 +217,24 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : PB4 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
 }
 
 /* USER CODE BEGIN 4 */
-
+int _write(int file, char *ptr, int len)
+{
+	int Idx;
+	for(Idx = 0; Idx<len; Idx++)
+	{
+		ITM_SendChar(*ptr++);
+	}
+	return len;
+}
 /* USER CODE END 4 */
 
 /**
