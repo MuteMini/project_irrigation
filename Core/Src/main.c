@@ -95,13 +95,27 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
-	  if(!HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4)){
-		  printf("The pin is off\r\n");
+	  /*if(!HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4)){
+		  printf("Pin 4 is off\r\n");
 	  }else{
-		  printf("The pin is on\r\n");
+		  printf("Pin 4 is on\r\n");
 	  }
-	  HAL_Delay(10);
+
+	  if(!HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5)){
+		  printf("Pin 5 is off\r\n");
+	  }else{
+		  printf("Pin 5 is on\r\n");
+	  }*/
+
+	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_7);
+	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_6);
+	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_5);
+	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
+	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_3);
+	  HAL_Delay(200);
+
+    /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -202,6 +216,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6
+                          |GPIO_PIN_7, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
@@ -210,6 +228,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : PC3 PC4 PC5 PC6
+                           PC7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6
+                          |GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
   /*Configure GPIO pin : LD2_Pin */
   GPIO_InitStruct.Pin = LD2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -217,8 +244,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PB4 */
-  GPIO_InitStruct.Pin = GPIO_PIN_4;
+  /*Configure GPIO pins : PB4 PB5 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
