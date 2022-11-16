@@ -43,6 +43,12 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
+// Represents button presses.
+int b1_pressed = 0;
+int b2_pressed = 0;
+// Represents what LED should be on for moisture sensor.
+int led_light = 2;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -55,9 +61,6 @@ static void MX_USART2_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-int b1pressed=0;//acts as our true or false. 0:false, 1:true
-int b2pressed=0;
-int ledLight = 2;
 
 /* USER CODE END 0 */
 
@@ -101,35 +104,43 @@ int main(void)
   {
 	  //on is when the button is not pressed
 	  //off is when the button is pressed
-	  if(!HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) && !b1pressed){//left button
-		  b1pressed=1;
-		  togglePin(ledLight);
-		  if(ledLight-1>=0){
+	  if( !HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) && !b1_pressed )
+	  {
+		  b1_pressed = 1;
+
+
+		  if( ledLight > 0 ) {
 			  --ledLight;
 		  }
 		  printf("Pin 4 is off\r\n");
-	  }else if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4)){
-		  b1pressed=0;
+	  }
+	  else if( HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) )
+	  {
+		  b1_pressed=0;
 		  //printf("Pin 4 is on\r\n");
 	  }
+
 	  //current issue: double clicking
-	  if(!HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) && !b2pressed){//right button
-		  b2pressed=1;
-		  togglePin(ledLight);
-		  if(ledLight+1<=5){
+	  if( !HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) && !b2_pressed )
+	  {
+		  b2_pressed=1;
+		  togglePin( ledLight );
+		  if( led_light < 5 ){
 			  ++ledLight;
 		  }
 		  printf("Pin 5 is off\r\n");
-	  }else if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5)){
-		  b2pressed=0;
+	  }
+	  else if( HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) )
+	  {
+		  b2_pressed=0;
 		  //printf("Pin 5 is on\r\n");
 	  }
-	  togglePin(ledLight);
-	  //HAL_Delay(10);
+	  togglePin(led_light);
+	  HAL_Delay(10);
 
-    /* USER CODE END WHILE */
+	 /* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */
+	 /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -274,20 +285,6 @@ int _write(int file, char *ptr, int len)
 		ITM_SendChar(*ptr++);
 	}
 	return len;
-}
-
-void togglePin(int x){
-	if(x==0){
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_7);
-	}else if(x==1){
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_6);
-	}else if(x==2){
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_5);
-	}else if(x==3){
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-	}else if(x==4){
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_3);
-	}
 }
 /* USER CODE END 4 */
 
