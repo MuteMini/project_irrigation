@@ -32,7 +32,15 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+//Primary Functions
+uint16_t Request_Moisture_Data();
+uint16_t Average_Moisture_Data();
 void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase );
+void Request_Moisture_Threshold();
+void Moisture_Level_Vs_Threshold();
+void Open_Motor();
+
+//Helper Functions
 void Set_LED_Pin( char x );
 
 /* USER CODE END PD */
@@ -69,7 +77,18 @@ static void MX_USART2_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase ) {
+uint16_t Request_Moisture_Data()
+{
+    return 0;
+}
+
+uint16_t Average_Moisture_Data()
+{
+    return 0;
+}
+
+void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase ) 
+{
 	//checks if button is being pressed
 	if( !HAL_GPIO_ReadPin( GPIOB, BUTTON_PIN ) && !(*b_on) )
 	{
@@ -90,8 +109,23 @@ void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase
 	}
 }
 
-void Set_LED_Pin( const char led_pin ){
+void Request_Moisture_Threshold()
+{
 
+}
+
+void Moisture_Level_Vs_Threshold()
+{
+
+}
+
+void Open_Motor()
+{
+
+}
+
+void Set_LED_Pin( const char led_pin )
+{
 	//checks if value (led_pin) is between correct range
 	assert_param( led_pin >= 0 && led_pin <= 4 );
 
@@ -112,7 +146,6 @@ void Set_LED_Pin( const char led_pin ){
 		case 4:
 			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_3, GPIO_PIN_SET );
 			break;
-	}
 }
 
 /* USER CODE END 0 */
