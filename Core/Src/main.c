@@ -32,12 +32,16 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-void Set_LED_Pin(int x);
+void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase );
+void Set_LED_Pin( char x );
 
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+
+#define ADDLED(a) ((a < 4) ? 1 : 0)
+#define MINUSLED(a) ((a > 0) ? -1 : 0)
 
 /* USER CODE END PM */
 
@@ -47,10 +51,10 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 
 // Represents button presses.
-int b1_pressed = 0;
-int b2_pressed = 0;
+char b_left_on = 0;
+char b_right_on = 0;
 // Represents what LED should be on for moisture sensor.
-int led_light = 2;
+char led_light = 2;
 
 /* USER CODE END PV */
 
@@ -64,6 +68,48 @@ static void MX_USART2_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase ) {
+	//checks if button is being pressed
+	if( !HAL_GPIO_ReadPin( GPIOB, BUTTON_PIN ) && !(*b_on) )
+	{
+		//set variable as being pressed
+		*b_on = 1;
+
+		//reset all pins
+		HAL_GPIO_WritePin( GPIOC, GPIO_PIN_All, GPIO_PIN_RESET );
+
+		//change led_light according to increase variable and set the pin as on
+		led_light += (increase ? ADDLED( led_light ) : MINUSLED( led_light ));
+		Set_LED_Pin( led_light );
+	}
+	//if button is released, set b_on as being off.
+	else if( HAL_GPIO_ReadPin( GPIOB, BUTTON_PIN ) )
+	{
+		*b_on = 0;
+	}
+}
+
+void Set_LED_Pin( char x ){
+	//maps a char value to pins that control LED
+	switch(x) {
+		case 0:
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+			break;
+		case 1:
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
+			break;
+		case 2:
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET);
+			break;
+		case 3:
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_4, GPIO_PIN_SET);
+			break;
+		case 4:
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3, GPIO_PIN_SET);
+			break;
+	}
+}
 
 /* USER CODE END 0 */
 
@@ -107,40 +153,8 @@ int main(void)
 
   while (1)
   {
-	  //on is when the button is not pressed
-	  //off is when the button is pressed
-	  if( !HAL_GPIO_ReadPin( GPIOB, GPIO_PIN_4 ) && !b1_pressed )
-	  {
-		  b1_pressed = 1;
-		  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_All, GPIO_PIN_RESET );
-
-		  if( led_light > 0 ) {
-			  --led_light;
-		  }
-
-		  Set_LED_Pin( led_light );
-	  }
-	  else if( HAL_GPIO_ReadPin( GPIOB, GPIO_PIN_4 ) )
-	  {
-		  b1_pressed=0;
-	  }
-
-	  //current issue: double clicking
-	  if( !HAL_GPIO_ReadPin( GPIOB, GPIO_PIN_5 ) && !b2_pressed )
-	  {
-		  b2_pressed = 1;
-		  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_All, GPIO_PIN_RESET );
-
-		  if( led_light < 4 ){
-			  ++led_light;
-		  }
-
-		  Set_LED_Pin( led_light );
-	  }
-	  else if( HAL_GPIO_ReadPin( GPIOB, GPIO_PIN_5 ) )
-	  {
-		  b2_pressed = 0;
-	  }
+	  Adjustor_Change( GPIO_PIN_4, &b_left_on, 0 );
+	  Adjustor_Change( GPIO_PIN_5, &b_right_on, 1 );
 	  HAL_Delay(10);
 
 	 /* USER CODE END WHILE */
@@ -292,25 +306,6 @@ int _write(int file, char *ptr, int len)
 	return len;
 }
 
-void Set_LED_Pin(int x){
-	switch(x) {
-		case 0:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-			break;
-		case 1:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
-			break;
-		case 2:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET);
-			break;
-		case 3:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_4, GPIO_PIN_SET);
-			break;
-		case 4:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3, GPIO_PIN_SET);
-			break;
-	}
-}
 /* USER CODE END 4 */
 
 /**
