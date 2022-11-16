@@ -31,6 +31,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+void Set_LED_Pin(int x);
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -95,6 +98,8 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  Set_LED_Pin( led_light );
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -104,38 +109,38 @@ int main(void)
   {
 	  //on is when the button is not pressed
 	  //off is when the button is pressed
-	  if( !HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) && !b1_pressed )
+	  if( !HAL_GPIO_ReadPin( GPIOB, GPIO_PIN_4 ) && !b1_pressed )
 	  {
 		  b1_pressed = 1;
+		  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_All, GPIO_PIN_RESET );
 
-
-		  if( ledLight > 0 ) {
-			  --ledLight;
+		  if( led_light > 0 ) {
+			  --led_light;
 		  }
-		  printf("Pin 4 is off\r\n");
+
+		  Set_LED_Pin( led_light );
 	  }
-	  else if( HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) )
+	  else if( HAL_GPIO_ReadPin( GPIOB, GPIO_PIN_4 ) )
 	  {
 		  b1_pressed=0;
-		  //printf("Pin 4 is on\r\n");
 	  }
 
 	  //current issue: double clicking
-	  if( !HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) && !b2_pressed )
+	  if( !HAL_GPIO_ReadPin( GPIOB, GPIO_PIN_5 ) && !b2_pressed )
 	  {
-		  b2_pressed=1;
-		  togglePin( ledLight );
-		  if( led_light < 5 ){
-			  ++ledLight;
+		  b2_pressed = 1;
+		  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_All, GPIO_PIN_RESET );
+
+		  if( led_light < 4 ){
+			  ++led_light;
 		  }
-		  printf("Pin 5 is off\r\n");
+
+		  Set_LED_Pin( led_light );
 	  }
-	  else if( HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) )
+	  else if( HAL_GPIO_ReadPin( GPIOB, GPIO_PIN_5 ) )
 	  {
-		  b2_pressed=0;
-		  //printf("Pin 5 is on\r\n");
+		  b2_pressed = 0;
 	  }
-	  togglePin(led_light);
 	  HAL_Delay(10);
 
 	 /* USER CODE END WHILE */
@@ -285,6 +290,26 @@ int _write(int file, char *ptr, int len)
 		ITM_SendChar(*ptr++);
 	}
 	return len;
+}
+
+void Set_LED_Pin(int x){
+	switch(x) {
+		case 0:
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+			break;
+		case 1:
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
+			break;
+		case 2:
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET);
+			break;
+		case 3:
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_4, GPIO_PIN_SET);
+			break;
+		case 4:
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3, GPIO_PIN_SET);
+			break;
+	}
 }
 /* USER CODE END 4 */
 
