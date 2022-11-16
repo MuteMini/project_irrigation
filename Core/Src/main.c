@@ -40,8 +40,8 @@ void Set_LED_Pin( char x );
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
-#define ADDLED(a) ((a < 4) ? 1 : 0)
-#define MINUSLED(a) ((a > 0) ? -1 : 0)
+#define ADD_LED(a) ((a < 4) ? 1 : 0)
+#define MINUS_LED(a) ((a > 0) ? -1 : 0)
 
 /* USER CODE END PM */
 
@@ -80,7 +80,7 @@ void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase
 		HAL_GPIO_WritePin( GPIOC, GPIO_PIN_All, GPIO_PIN_RESET );
 
 		//change led_light according to increase variable and set the pin as on
-		led_light += (increase ? ADDLED( led_light ) : MINUSLED( led_light ));
+		led_light += (increase ? ADD_LED( led_light ) : MINUS_LED( led_light ));
 		Set_LED_Pin( led_light );
 	}
 	//if button is released, set b_on as being off.
@@ -90,23 +90,27 @@ void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase
 	}
 }
 
-void Set_LED_Pin( char x ){
-	//maps a char value to pins that control LED
-	switch(x) {
+void Set_LED_Pin( const char led_pin ){
+
+	//checks if value (led_pin) is between correct range
+	assert_param( led_pin >= 0 && led_pin <= 4 );
+
+	//maps the led_pin to pins that control LED
+	switch( led_pin ) {
 		case 0:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_7, GPIO_PIN_SET );
 			break;
 		case 1:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_6, GPIO_PIN_SET );
 			break;
 		case 2:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET);
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_5, GPIO_PIN_SET );
 			break;
 		case 3:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_4, GPIO_PIN_SET);
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_4, GPIO_PIN_SET );
 			break;
 		case 4:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3, GPIO_PIN_SET);
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_3, GPIO_PIN_SET );
 			break;
 	}
 }

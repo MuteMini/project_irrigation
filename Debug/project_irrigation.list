@@ -27,23 +27,23 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   ALLOC
  11 .ARM.attributes 00000030  00000000  00000000  00020010  2**0
                   CONTENTS, READONLY
- 12 .debug_info   00007991  00000000  00000000  00020040  2**0
+ 12 .debug_info   00007994  00000000  00000000  00020040  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 13 .debug_abbrev 0000135d  00000000  00000000  000279d1  2**0
+ 13 .debug_abbrev 0000134c  00000000  00000000  000279d4  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 14 .debug_aranges 00000628  00000000  00000000  00028d30  2**3
+ 14 .debug_aranges 00000628  00000000  00000000  00028d20  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_ranges 000005c0  00000000  00000000  00029358  2**3
+ 15 .debug_ranges 000005c0  00000000  00000000  00029348  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 16 .debug_macro  000146c6  00000000  00000000  00029918  2**0
+ 16 .debug_macro  000146c6  00000000  00000000  00029908  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   000075c2  00000000  00000000  0003dfde  2**0
+ 17 .debug_line   000075c2  00000000  00000000  0003dfce  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    00080d18  00000000  00000000  000455a0  2**0
+ 18 .debug_str    00080d22  00000000  00000000  00045590  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000050  00000000  00000000  000c62b8  2**0
+ 19 .comment      00000050  00000000  00000000  000c62b2  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  00001838  00000000  00000000  000c6308  2**2
+ 20 .debug_frame  00001838  00000000  00000000  000c6304  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -393,7 +393,7 @@ void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase
  800050e:	f000 fdab 	bl	8001068 <HAL_GPIO_WritePin>
 
 		//change led_light according to increase variable and set the pin as on
-		led_light += (increase ? ADDLED( led_light ) : MINUSLED( led_light ));
+		led_light += (increase ? ADD_LED( led_light ) : MINUS_LED( led_light ));
  8000512:	797b      	ldrb	r3, [r7, #5]
  8000514:	2b00      	cmp	r3, #0
  8000516:	d007      	beq.n	8000528 <Adjustor_Change+0x50>
@@ -453,14 +453,18 @@ void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase
 
 08000578 <Set_LED_Pin>:
 
-void Set_LED_Pin( char x ){
+void Set_LED_Pin( const char led_pin ){
  8000578:	b580      	push	{r7, lr}
  800057a:	b082      	sub	sp, #8
  800057c:	af00      	add	r7, sp, #0
  800057e:	4603      	mov	r3, r0
  8000580:	71fb      	strb	r3, [r7, #7]
-	//maps a char value to pins that control LED
-	switch(x) {
+
+	//checks if value (led_pin) is between correct range
+	assert_param( led_pin >= 0 && led_pin <= 4 );
+
+	//maps the led_pin to pins that control LED
+	switch( led_pin ) {
  8000582:	79fb      	ldrb	r3, [r7, #7]
  8000584:	2b04      	cmp	r3, #4
  8000586:	d82b      	bhi.n	80005e0 <Set_LED_Pin+0x68>
@@ -473,7 +477,7 @@ void Set_LED_Pin( char x ){
  800059c:	080005c9 	.word	0x080005c9
  80005a0:	080005d5 	.word	0x080005d5
 		case 0:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_7, GPIO_PIN_SET );
  80005a4:	2201      	movs	r2, #1
  80005a6:	2180      	movs	r1, #128	; 0x80
  80005a8:	480f      	ldr	r0, [pc, #60]	; (80005e8 <Set_LED_Pin+0x70>)
@@ -481,7 +485,7 @@ void Set_LED_Pin( char x ){
 			break;
  80005ae:	e017      	b.n	80005e0 <Set_LED_Pin+0x68>
 		case 1:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_6, GPIO_PIN_SET );
  80005b0:	2201      	movs	r2, #1
  80005b2:	2140      	movs	r1, #64	; 0x40
  80005b4:	480c      	ldr	r0, [pc, #48]	; (80005e8 <Set_LED_Pin+0x70>)
@@ -489,7 +493,7 @@ void Set_LED_Pin( char x ){
 			break;
  80005ba:	e011      	b.n	80005e0 <Set_LED_Pin+0x68>
 		case 2:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET);
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_5, GPIO_PIN_SET );
  80005bc:	2201      	movs	r2, #1
  80005be:	2120      	movs	r1, #32
  80005c0:	4809      	ldr	r0, [pc, #36]	; (80005e8 <Set_LED_Pin+0x70>)
@@ -497,7 +501,7 @@ void Set_LED_Pin( char x ){
 			break;
  80005c6:	e00b      	b.n	80005e0 <Set_LED_Pin+0x68>
 		case 3:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_4, GPIO_PIN_SET);
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_4, GPIO_PIN_SET );
  80005c8:	2201      	movs	r2, #1
  80005ca:	2110      	movs	r1, #16
  80005cc:	4806      	ldr	r0, [pc, #24]	; (80005e8 <Set_LED_Pin+0x70>)
@@ -505,7 +509,7 @@ void Set_LED_Pin( char x ){
 			break;
  80005d2:	e005      	b.n	80005e0 <Set_LED_Pin+0x68>
 		case 4:
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3, GPIO_PIN_SET);
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_3, GPIO_PIN_SET );
  80005d4:	2201      	movs	r2, #1
  80005d6:	2108      	movs	r1, #8
  80005d8:	4803      	ldr	r0, [pc, #12]	; (80005e8 <Set_LED_Pin+0x70>)
