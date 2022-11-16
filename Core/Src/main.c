@@ -31,6 +31,14 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+uint16_t Request_Moisture_Data();
+uint16_t Average_Moisture_Data();
+void Adjustor_Change();
+void Request_Moisture_Threshold();
+void Moisture_Level_Vs_Threshold();
+void Open_Motor();
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -55,6 +63,36 @@ static void MX_USART2_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+uint16_t Request_Moisture_Data()
+{
+
+}
+
+uint16_t Average_Moisture_Data()
+{
+
+}
+
+void Adjustor_Change()
+{
+
+}
+
+void Request_Moisture_Threshold()
+{
+
+}
+
+void Moisture_Level_Vs_Threshold()
+{
+
+}
+
+void Open_Motor()
+{
+
+}
 
 /* USER CODE END 0 */
 
