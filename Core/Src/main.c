@@ -153,6 +153,7 @@ void Set_LED_Pin( const char led_pin )
 		case 4:
 			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_3, GPIO_PIN_SET );
 			break;
+  }
 }
 
 /* USER CODE END 0 */
