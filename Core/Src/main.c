@@ -95,8 +95,8 @@ void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase
 		//set variable as being pressed
 		*b_on = 1;
 
-		//reset all pins
-		HAL_GPIO_WritePin( GPIOC, GPIO_PIN_All, GPIO_PIN_RESET );
+		//reset current pin
+		HAL_GPIO_WritePin( GPIOC, led_light, GPIO_PIN_RESET );
 
 		//change led_light according to increase variable and set the pin as on
 		led_light += (increase ? ADD_LED( led_light ) : MINUS_LED( led_light ));
