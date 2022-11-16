@@ -32,17 +32,24 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+//Primary Functions
 uint16_t Request_Moisture_Data();
 uint16_t Average_Moisture_Data();
-void Adjustor_Change();
+void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase );
 void Request_Moisture_Threshold();
 void Moisture_Level_Vs_Threshold();
 void Open_Motor();
+
+//Helper Functions
+void Set_LED_Pin( char x );
 
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+
+#define ADD_LED(a) ((a < 4) ? 1 : 0)
+#define MINUS_LED(a) ((a > 0) ? -1 : 0)
 
 /* USER CODE END PM */
 
@@ -50,6 +57,12 @@ void Open_Motor();
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+
+// Represents button presses.
+char b_left_on = 0;
+char b_right_on = 0;
+// Represents what LED should be on for moisture sensor.
+char led_light = 2;
 
 /* USER CODE END PV */
 
@@ -66,17 +79,34 @@ static void MX_USART2_UART_Init(void);
 
 uint16_t Request_Moisture_Data()
 {
-
+    return 0;
 }
 
 uint16_t Average_Moisture_Data()
 {
-
+    return 0;
 }
 
-void Adjustor_Change()
+void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase ) 
 {
+	//checks if button is being pressed
+	if( !HAL_GPIO_ReadPin( GPIOB, BUTTON_PIN ) && !(*b_on) )
+	{
+		//set variable as being pressed
+		*b_on = 1;
 
+		//reset all pins
+		HAL_GPIO_WritePin( GPIOC, GPIO_PIN_All, GPIO_PIN_RESET );
+
+		//change led_light according to increase variable and set the pin as on
+		led_light += (increase ? ADD_LED( led_light ) : MINUS_LED( led_light ));
+		Set_LED_Pin( led_light );
+	}
+	//if button is released, set b_on as being off.
+	else if( HAL_GPIO_ReadPin( GPIOB, BUTTON_PIN ) )
+	{
+		*b_on = 0;
+	}
 }
 
 void Request_Moisture_Threshold()
@@ -92,6 +122,30 @@ void Moisture_Level_Vs_Threshold()
 void Open_Motor()
 {
 
+}
+
+void Set_LED_Pin( const char led_pin )
+{
+	//checks if value (led_pin) is between correct range
+	assert_param( led_pin >= 0 && led_pin <= 4 );
+
+	//maps the led_pin to pins that control LED
+	switch( led_pin ) {
+		case 0:
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_7, GPIO_PIN_SET );
+			break;
+		case 1:
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_6, GPIO_PIN_SET );
+			break;
+		case 2:
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_5, GPIO_PIN_SET );
+			break;
+		case 3:
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_4, GPIO_PIN_SET );
+			break;
+		case 4:
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_3, GPIO_PIN_SET );
+			break;
 }
 
 /* USER CODE END 0 */
@@ -127,15 +181,22 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  Set_LED_Pin( led_light );
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
   while (1)
   {
-    /* USER CODE END WHILE */
+	  Adjustor_Change( GPIO_PIN_4, &b_left_on, 0 );
+	  Adjustor_Change( GPIO_PIN_5, &b_right_on, 1 );
+	  HAL_Delay(10);
 
-    /* USER CODE BEGIN 3 */
+	 /* USER CODE END WHILE */
+
+	 /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -235,6 +296,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6
+                          |GPIO_PIN_7, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
@@ -243,6 +308,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : PC3 PC4 PC5 PC6
+                           PC7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6
+                          |GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
   /*Configure GPIO pin : LD2_Pin */
   GPIO_InitStruct.Pin = LD2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -250,9 +324,24 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : PB4 PB5 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
 }
 
 /* USER CODE BEGIN 4 */
+int _write(int file, char *ptr, int len)
+{
+	int Idx;
+	for(Idx = 0; Idx<len; Idx++)
+	{
+		ITM_SendChar(*ptr++);
+	}
+	return len;
+}
 
 /* USER CODE END 4 */
 
