@@ -75,8 +75,8 @@ all: main-build
 main-build: project_irrigation.elf secondary-outputs
 
 # Tool invocations
-project_irrigation.elf project_irrigation.map: $(OBJS) $(USER_OBJS) C:\Users\there\Documents\GitHub\project_irrigation\STM32F401RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-g++ -o "project_irrigation.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\there\Documents\GitHub\project_irrigation\STM32F401RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="project_irrigation.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
+project_irrigation.elf project_irrigation.map: $(OBJS) $(USER_OBJS) C:\Users\ryanj\OneDrive\Documents\Github\project_irrigation\STM32F401RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-g++ -o "project_irrigation.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\ryanj\OneDrive\Documents\Github\project_irrigation\STM32F401RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="project_irrigation.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
