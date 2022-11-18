@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stdio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -33,8 +34,8 @@
 /* USER CODE BEGIN PD */
 
 //Primary Functions
-uint16_t Request_Moisture_Data();
-uint16_t Average_Moisture_Data();
+uint16_t Request_Moisture_Data( void );
+void Average_Moisture_Data( double *average, char size, uint16_t newVal );
 void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase );
 void Request_Moisture_Threshold();
 void Moisture_Level_Vs_Threshold();
@@ -67,6 +68,11 @@ char b_right_on = 0;
 // Represents what LED should be on for moisture sensor.
 char led_light = 2;
 
+double soil_moisture = 0;
+
+// Holds how much values have been averaged so far.
+char average_size = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -85,13 +91,13 @@ static void MX_ADC1_Init(void);
 uint16_t Request_Moisture_Data()
 {
 	HAL_ADC_Start(&hadc1);
-	HAD_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
 	return HAL_ADC_GetValue(&hadc1);
 }
 
-uint16_t Average_Moisture_Data()
+void Average_Moisture_Data( double *average, char size, uint16_t newVal )
 {
-    return 0;
+	(*average) += (newVal - (*average)) / size;
 }
 
 void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase ) 
@@ -199,9 +205,24 @@ int main(void)
 
   while (1)
   {
-
 	  Adjustor_Change( GPIO_PIN_4, &b_left_on, 0 );
 	  Adjustor_Change( GPIO_PIN_5, &b_right_on, 1 );
+
+	  /*
+	  if( time elapsed is 1 minute)
+	  {
+	  	  soil_moisture = 0;
+	  	  average_size = 0;
+	  }
+	   */
+
+	  if( average_size < 30 ) {
+		  Average_Moisture_Data( &soil_moisture, average_size, Request_Moisture_Data() );
+		  ++average_size;
+
+		  printf("%d\n", (int)soil_moisture);
+	  }
+
 	  HAL_Delay(10);
 
     /* USER CODE END WHILE */
