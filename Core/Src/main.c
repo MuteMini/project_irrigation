@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "stdio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -34,7 +33,7 @@
 /* USER CODE BEGIN PD */
 
 //Primary Functions
-uint32_t Request_Moisture_Data( void );
+uint16_t Request_Moisture_Data( void );
 void Average_Moisture_Data( double *average, char size, uint16_t newVal );
 void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase );
 void Request_Moisture_Threshold();
@@ -93,7 +92,7 @@ static void MX_ADC1_Init(void);
  *
  * 	@return ADC IN9 pin input
  */
-uint32_t Request_Moisture_Data()
+uint16_t Request_Moisture_Data()
 {
 	HAL_ADC_Start(&hadc1);
 	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
@@ -125,7 +124,7 @@ void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase
 		*b_on = 1;
 
 		//reset current pin
-		HAL_GPIO_WritePin( GPIOC, led_light, GPIO_PIN_RESET );
+		HAL_GPIO_WritePin( GPIOC, GPIO_PIN_All, GPIO_PIN_RESET );
 
 		//change led_light according to increase variable and set the pin as on
 		led_light += (increase ? ADD_LED( led_light ) : MINUS_LED( led_light ));
@@ -231,13 +230,16 @@ int main(void)
 	  	  average_size = 0;
 	  }
 	   */
+	  printf("Im printing characters");
 
-	  if( average_size < 30 ) {
-		  ++average_size;
-		  Average_Moisture_Data( &soil_moisture, average_size, Request_Moisture_Data() );
+	  //printf("%u\n", (unsigned int)Request_Moisture_Data());
 
-		  printf("%d\n", (int)soil_moisture);
-	  }
+//	  if( average_size < 30 ) {
+//		  ++average_size;
+//		  Average_Moisture_Data( &soil_moisture, average_size, Request_Moisture_Data() );
+//
+//		  printf("%d\n", (int)soil_moisture);
+//	  }
 
 	  HAL_Delay(10);
 

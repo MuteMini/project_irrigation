@@ -1,9 +1,9 @@
 #MicroXplorer Configuration settings - do not modify
-ADC1.Channel-2\#ChannelRegularConversion=ADC_CHANNEL_9
-ADC1.IPParameters=Rank-2\#ChannelRegularConversion,master,Channel-2\#ChannelRegularConversion,SamplingTime-2\#ChannelRegularConversion,NbrOfConversionFlag
+ADC1.Channel-3\#ChannelRegularConversion=ADC_CHANNEL_9
+ADC1.IPParameters=Rank-3\#ChannelRegularConversion,master,Channel-3\#ChannelRegularConversion,SamplingTime-3\#ChannelRegularConversion,NbrOfConversionFlag
 ADC1.NbrOfConversionFlag=1
-ADC1.Rank-2\#ChannelRegularConversion=1
-ADC1.SamplingTime-2\#ChannelRegularConversion=ADC_SAMPLETIME_3CYCLES
+ADC1.Rank-3\#ChannelRegularConversion=1
+ADC1.SamplingTime-3\#ChannelRegularConversion=ADC_SAMPLETIME_3CYCLES
 ADC1.master=1
 File.Version=6
 KeepUserPlacement=false
