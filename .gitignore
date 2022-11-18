@@ -3,6 +3,7 @@
 
 ### Eclipse ###
 .metadata
+Debug/
 bin/
 tmp/
 *.tmp

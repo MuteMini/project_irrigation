@@ -40,7 +40,7 @@ void Moisture_Level_Vs_Threshold();
 void Open_Motor();
 
 //Helper Functions
-void Set_LED_Pin( char x );
+void Set_LED_Pin( const char led_pin, GPIO_PinState state );
 
 /* USER CODE END PD */
 
@@ -97,12 +97,12 @@ void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase
 		//set variable as being pressed
 		*b_on = 1;
 
-		//reset all pins
-		HAL_GPIO_WritePin( GPIOC, GPIO_PIN_All, GPIO_PIN_RESET );
+		//reset current pin
+		Set_LED_Pin( led_light, GPIO_PIN_RESET );
 
 		//change led_light according to increase variable and set the pin as on
 		led_light += (increase ? ADD_LED( led_light ) : MINUS_LED( led_light ));
-		Set_LED_Pin( led_light );
+		Set_LED_Pin( led_light, GPIO_PIN_SET );
 	}
 	//if button is released, set b_on as being off.
 	else if( HAL_GPIO_ReadPin( GPIOB, BUTTON_PIN ) )
@@ -126,7 +126,7 @@ void Open_Motor()
 
 }
 
-void Set_LED_Pin( const char led_pin )
+void Set_LED_Pin( const char led_pin, GPIO_PinState state )
 {
 	//checks if value (led_pin) is between correct range
 	assert_param( led_pin >= 0 && led_pin <= 4 );
@@ -134,19 +134,19 @@ void Set_LED_Pin( const char led_pin )
 	//maps the led_pin to pins that control LED
 	switch( led_pin ) {
 		case 0:
-			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_7, GPIO_PIN_SET );
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_7, state );
 			break;
 		case 1:
-			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_6, GPIO_PIN_SET );
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_6, state );
 			break;
 		case 2:
-			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_5, GPIO_PIN_SET );
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_5, state );
 			break;
 		case 3:
-			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_4, GPIO_PIN_SET );
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_4, state );
 			break;
 		case 4:
-			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_3, GPIO_PIN_SET );
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_3, state );
 			break;
 	}
 }
