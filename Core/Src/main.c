@@ -87,7 +87,12 @@ static void MX_ADC1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-//This may cause a halt in CPU about 10ms
+/** @function	Request_Moisture_Data
+ *
+ * 	@brief	Uses ADC driver to poll and return the value of the ADC IN9 pin
+ *
+ * 	@return ADC IN9 pin input
+ */
 uint16_t Request_Moisture_Data()
 {
 	HAL_ADC_Start(&hadc1);
@@ -95,6 +100,17 @@ uint16_t Request_Moisture_Data()
 	return HAL_ADC_GetValue(&hadc1);
 }
 
+/** @function	Average_Moisture_Data
+ *
+ * 	@brief	Updates the average parameter given it's current size and new value
+ * 			without storing into an array
+ *
+ *  @param[out]	average 	Average value being manipulated
+ *	@param[in]	size		Number of variables currently averaged
+ *	@param[in]	newVal		New value to be added to average
+ *
+ *	@retval None
+ */
 void Average_Moisture_Data( double *average, char size, uint16_t newVal )
 {
 	(*average) += (newVal - (*average)) / size;
@@ -217,8 +233,8 @@ int main(void)
 	   */
 
 	  if( average_size < 30 ) {
-		  Average_Moisture_Data( &soil_moisture, average_size, Request_Moisture_Data() );
 		  ++average_size;
+		  Average_Moisture_Data( &soil_moisture, average_size, Request_Moisture_Data() );
 
 		  printf("%d\n", (int)soil_moisture);
 	  }
