@@ -230,9 +230,8 @@ int main(void)
 	  	  average_size = 0;
 	  }
 	   */
-	  printf("Im printing characters");
 
-	  //printf("%u\n", (unsigned int)Request_Moisture_Data());
+	  printf("%u\n", (unsigned int)Request_Moisture_Data());
 
 //	  if( average_size < 30 ) {
 //		  ++average_size;
