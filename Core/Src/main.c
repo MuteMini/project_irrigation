@@ -34,7 +34,7 @@
 /* USER CODE BEGIN PD */
 
 //Primary Functions
-uint16_t Request_Moisture_Data( void );
+uint32_t Request_Moisture_Data( void );
 void Average_Moisture_Data( double *average, char size, uint16_t newVal );
 void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase );
 void Request_Moisture_Threshold();
@@ -93,7 +93,7 @@ static void MX_ADC1_Init(void);
  *
  * 	@return ADC IN9 pin input
  */
-uint16_t Request_Moisture_Data()
+uint32_t Request_Moisture_Data()
 {
 	HAL_ADC_Start(&hadc1);
 	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
