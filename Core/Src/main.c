@@ -41,7 +41,7 @@ void Open_Motor();
 
 //Helper Functions
 void Set_LED_Pin( const char led_pin, GPIO_PinState state );
-short return_a_second();
+short Return_A_Second( short poll );
 
 /* USER CODE END PD */
 
@@ -153,6 +153,25 @@ void Set_LED_Pin( const char led_pin, GPIO_PinState state )
 	}
 }
 
+//put this at the top in github
+short Return_A_Second( short poll ){
+	if( __HAL_TIM_GET_COUNTER( &htim2 ) - timer_val >= 10000)
+	{
+		if(poll)
+		{
+			HAL_GPIO_TogglePin( GPIOA, GPIO_PIN_5 );
+		}
+		timer_val = __HAL_TIM_GET_COUNTER( &htim2 );
+		if( timer_val == htim2.Init.Period )
+		{
+			timer_val = 0;
+		}
+		return 1;
+		//printf("%d\n", timer_val);
+	}
+	return 0;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -163,6 +182,7 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 	int timer;
+	short polling;
 
   /* USER CODE END 1 */
 
@@ -196,6 +216,8 @@ int main(void)
   //Get current time
   timer_val = __HAL_TIM_GET_COUNTER(&htim2);
 
+  polling = 0;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -206,29 +228,23 @@ int main(void)
 	  Adjustor_Change( GPIO_PIN_5, &b_right_on, 1 );
 
 	  //If enough time has passed (1 second), toggle LED and add a second to the timer variable
-	  timer += return_a_second();
+	  timer += Return_A_Second(polling);
 	  //change the name to get_a_second or smth
 	  printf(timer+"\n");
 
+	  if( timer==60 && !polling )
+	  {
+		  polling = 1;
+
+	  }
+
+	  if( timer==30 && polling )
+	  {
+
+	  }
+
 	  HAL_Delay(1);
 
-	  /*if(__HAL_TIM_GET_COUNTER( &htim2 ) - timer_val ){
-		  stop = 0;
-		  HAL_GPIO_TogglePin( GPIOA, GPIO_PIN_5 );
-		  //htim2.;
-		  //__HAL_TIM_SET_COUNTER( 0 );
-		  timer_val = __HAL_TIM_GET_COUNTER ( &htim2 );
-	  }*/
-
-	  /*printf("%i\n", timerValue);
-	  if( timerValue == 0 )
-	  {
-		  HAL_GPIO_WritePin( LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET );
-	  }
-	  else if( timerValue == 120 )
-	  {
-		  HAL_GPIO_WritePin( LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET );
-	  }*/
 
     /* USER CODE END WHILE */
 
@@ -434,20 +450,7 @@ int _write(int file, char *ptr, int len)
 	return len;
 }
 
-short return_a_second(){
-	if( __HAL_TIM_GET_COUNTER( &htim2 ) - timer_val >= 10000)
-		{
-			HAL_GPIO_TogglePin( GPIOA, GPIO_PIN_5 );
-			timer_val = __HAL_TIM_GET_COUNTER( &htim2 );
-			if( timer_val == htim2.Init.Period )
-			{
-				timer_val = 0;
-			}
-			return 1;
-			//printf("%d\n", timer_val);
-		  }
-	return 0;
-}
+
 
 /* USER CODE END 4 */
 
