@@ -41,6 +41,7 @@ void Open_Motor();
 
 //Helper Functions
 void Set_LED_Pin( const char led_pin, GPIO_PinState state );
+short return_a_second();
 
 /* USER CODE END PD */
 
@@ -64,6 +65,7 @@ char b_left_on = 0;
 char b_right_on = 0;
 // Represents what LED should be on for moisture sensor.
 char led_light = 2;
+uint32_t timer_val;
 
 /* USER CODE END PV */
 
@@ -160,7 +162,7 @@ void Set_LED_Pin( const char led_pin, GPIO_PinState state )
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	uint32_t timer_val;
+	int timer;
 
   /* USER CODE END 1 */
 
@@ -188,7 +190,8 @@ int main(void)
 
   //Timer start
   HAL_TIM_Base_Start( &htim2 );
-  Set_LED_Pin( led_light );
+  Set_LED_Pin( led_light, GPIO_PIN_SET );
+  timer=0;
 
   //Get current time
   timer_val = __HAL_TIM_GET_COUNTER(&htim2);
@@ -202,20 +205,10 @@ int main(void)
 	  Adjustor_Change( GPIO_PIN_4, &b_left_on, 0 );
 	  Adjustor_Change( GPIO_PIN_5, &b_right_on, 1 );
 
-	  //If enough time has passed (1 second), toggle LED and get new timestamp
-	  if( __HAL_TIM_GET_COUNTER( &htim2 ) - timer_val >= 10000)
-	  {
-		  HAL_GPIO_TogglePin( GPIOA, GPIO_PIN_5 );
-
-		  timer_val = __HAL_TIM_GET_COUNTER( &htim2 );
-		  if( timer_val == htim2.Init.Period )
-		  {
-			  timer_val = 0;
-		  }
-
-		  printf("%d\n", timer_val);
-		  printf("I am printing characters");
-	  }
+	  //If enough time has passed (1 second), toggle LED and add a second to the timer variable
+	  timer += return_a_second();
+	  //change the name to get_a_second or smth
+	  printf(timer+"\n");
 
 	  HAL_Delay(1);
 
@@ -439,6 +432,21 @@ int _write(int file, char *ptr, int len)
 		ITM_SendChar(*ptr++);
 	}
 	return len;
+}
+
+short return_a_second(){
+	if( __HAL_TIM_GET_COUNTER( &htim2 ) - timer_val >= 10000)
+		{
+			HAL_GPIO_TogglePin( GPIOA, GPIO_PIN_5 );
+			timer_val = __HAL_TIM_GET_COUNTER( &htim2 );
+			if( timer_val == htim2.Init.Period )
+			{
+				timer_val = 0;
+			}
+			return 1;
+			//printf("%d\n", timer_val);
+		  }
+	return 0;
 }
 
 /* USER CODE END 4 */
