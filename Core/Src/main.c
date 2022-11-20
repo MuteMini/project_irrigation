@@ -32,16 +32,16 @@
 /* USER CODE BEGIN PD */
 
 //Primary Functions
-uint16_t Request_Moisture_Data();
-uint16_t Average_Moisture_Data();
-void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase );
+uint16_t Request_Moisture_Data( void );
+void Average_Moisture_Data( double*, char, uint16_t );
+void Adjustor_Change( const uint16_t, char *, const char );
 void Request_Moisture_Threshold();
 void Moisture_Level_Vs_Threshold();
 void Open_Motor();
 
 //Helper Functions
-void Set_LED_Pin( const char led_pin, GPIO_PinState state );
-short Return_A_Second( short poll );
+void Set_LED_Pin( char, GPIO_PinState );
+short Return_A_Second( short );
 
 /* USER CODE END PD */
 
@@ -54,18 +54,30 @@ short Return_A_Second( short poll );
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
-// Represents button presses.
+/* 	Maximum available total moisture value to calculate moisture percentage
+ 	Calculated by (Max Volt / Nominal Reference) * 4092
+ 	Pin out Max Voltage, through testing, is about 2.2 volts
+ 	Nominal Reference Voltage is around 2.0~2.5 */
+const short MAX_MOISTURE = 1800;
+
+// 	Represents button presses.
 char b_left_on = 0;
 char b_right_on = 0;
-// Represents what LED should be on for moisture sensor.
+// 	Represents what LED should be on for moisture sensor.
 char led_light = 2;
 uint32_t timer_val;
+
+// 	Used to calculate average in O(1) memory
+char average_size = 0;
+double soil_moisture = 0;
 
 /* USER CODE END PV */
 
@@ -73,6 +85,7 @@ uint32_t timer_val;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_ADC1_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -81,14 +94,33 @@ static void MX_TIM2_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+/** @function	Request_Moisture_Data
+ *
+ * 	@brief	Uses ADC driver to poll and return the value of the ADC IN9 pin
+ *
+ * 	@return ADC IN9 pin input
+ */
 uint16_t Request_Moisture_Data()
 {
-    return 0;
+	HAL_ADC_Start(&hadc1);
+	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+	return HAL_ADC_GetValue(&hadc1);
 }
 
-uint16_t Average_Moisture_Data()
+/** @function	Average_Moisture_Data
+ *
+ * 	@brief	Updates the average parameter given it's current size and new value
+ * 			without storing into an array
+ *
+ *  @param[out]	average 	Average value being manipulated
+ *	@param[in]	size		Number of variables currently averaged
+ *	@param[in]	newVal		New value to be added to average
+ *
+ *	@retval None
+ */
+void Average_Moisture_Data( double *average, char size, uint16_t newVal )
 {
-    return 0;
+	(*average) += (newVal - (*average)) / size;
 }
 
 void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase ) 
@@ -207,13 +239,14 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_ADC1_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
   //Timer start
   HAL_TIM_Base_Start( &htim2 );
   Set_LED_Pin( led_light, GPIO_PIN_SET );
-  timer=0;
+  timer = 0;
 
   //Get current time
   timer_val = __HAL_TIM_GET_COUNTER(&htim2);
@@ -230,7 +263,27 @@ int main(void)
   {
 	  Adjustor_Change( GPIO_PIN_4, &b_left_on, 0 );
 	  Adjustor_Change( GPIO_PIN_5, &b_right_on, 1 );
+	  /*
+	  if( time elapsed is 1 minute)
+	  {
+	  	  soil_moisture = 0;
+	  	  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_SET );
 
+	  	  start polling for 30 seconds
+	  }
+	   */
+
+	  //average_size variable will be switched out with the timer code
+	  if( average_size < 30 ) {
+		  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_SET );
+		  ++average_size;
+		  uint16_t cur_moist = Request_Moisture_Data(); //TEST CODE
+		  Average_Moisture_Data( &soil_moisture, average_size, cur_moist );
+
+		  printf("%d  ", (int)soil_moisture);//TEST CODE
+		  printf("%d\n", cur_moist);//TEST CODE
+	  }
+    
 	  //If enough time has passed (1 second), toggle LED and add a second to the timer variable
 	  timer += Increment_Timer(polling);
 	  //change the name to get_a_second or smth
@@ -263,8 +316,7 @@ int main(void)
 	  }
 
 	  HAL_Delay(1);
-
-
+    
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -319,6 +371,56 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_9;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
+/**
   * @brief TIM2 Initialization Function
   * @param None
   * @retval None
@@ -360,7 +462,6 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
-
 }
 
 /**
@@ -412,8 +513,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6
-                          |GPIO_PIN_7, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0|GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5
+                          |GPIO_PIN_6|GPIO_PIN_7, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
@@ -427,10 +528,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PC3 PC4 PC5 PC6
-                           PC7 */
-  GPIO_InitStruct.Pin = GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6
-                          |GPIO_PIN_7;
+  /*Configure GPIO pins : PC0 PC3 PC4 PC5
+                           PC6 PC7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5
+                          |GPIO_PIN_6|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
