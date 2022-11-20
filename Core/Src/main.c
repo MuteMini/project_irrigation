@@ -153,9 +153,8 @@ void Set_LED_Pin( const char led_pin, GPIO_PinState state )
 	}
 }
 
-//put this at the top in github
-short Return_A_Second( short poll ){
-	if( __HAL_TIM_GET_COUNTER( &htim2 ) - timer_val >= 10000)
+char Increment_Timer( char poll ){
+	if( __HAL_TIM_GET_COUNTER( &htim2 ) - timer_val >= 5000)
 	{
 		if(poll)
 		{
@@ -182,7 +181,10 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 	int timer;
-	short polling;
+	char polling;
+	char data_is_available;
+	int moisture_data;
+
 
   /* USER CODE END 1 */
 
@@ -217,6 +219,8 @@ int main(void)
   timer_val = __HAL_TIM_GET_COUNTER(&htim2);
 
   polling = 0;
+  data_is_available = 0;
+  moisture_data = 0;
 
   /* USER CODE END 2 */
 
@@ -228,19 +232,34 @@ int main(void)
 	  Adjustor_Change( GPIO_PIN_5, &b_right_on, 1 );
 
 	  //If enough time has passed (1 second), toggle LED and add a second to the timer variable
-	  timer += Return_A_Second(polling);
+	  timer += Increment_Timer(polling);
 	  //change the name to get_a_second or smth
 	  printf(timer+"\n");
 
-	  if( timer==60 && !polling )
-	  {
-		  polling = 1;
+	  //timer [0, 180) EACH NUMBER = 1/2s
 
+	  //timer [0, 60) => 30s => activate valve IF moisture is below threshold
+	  //timer [0, 120) => minute =>  we do nothing => only let moisture change
+	  //timer [120, 180) => 30s => we poll
+
+	  if( timer < 60 && data_is_available)
+	  {
+		  //activate valve if moisture is below threshold, and data is available
+		  Moisture_Level_Vs_Threshold();
 	  }
-
-	  if( timer==30 && polling )
+	  else if (timer < 120 )
 	  {
-
+		  //do nothing
+	  }
+	  else if (timer < 180 )
+	  {
+		  //poll for moisture data
+		  Request_Moisture_Data();
+		  data_is_available = 1;
+	  }
+	  else if (timer >= 180 )
+	  {
+		  timer = 0;
 	  }
 
 	  HAL_Delay(1);
