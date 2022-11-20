@@ -34,14 +34,14 @@
 
 //Primary Functions
 uint16_t Request_Moisture_Data( void );
-void Average_Moisture_Data( double *average, char size, uint16_t newVal );
-void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase );
+void Average_Moisture_Data( double*, char, uint16_t );
+void Adjustor_Change( const uint16_t, char *, const char );
 void Request_Moisture_Threshold();
 void Moisture_Level_Vs_Threshold();
 void Open_Motor();
 
 //Helper Functions
-void Set_LED_Pin( char x );
+void Set_LED_Pin( char );
 
 /* USER CODE END PD */
 
@@ -60,17 +60,18 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
+// Maximum available total moisture value to calculate moisture percentage
+const short MAX_MOISTURE = 3000;
+
 // Represents button presses.
 char b_left_on = 0;
 char b_right_on = 0;
-
 // Represents what LED should be on for moisture sensor.
 char led_light = 2;
 
-double soil_moisture = 0;
-
-// Holds how much values have been averaged so far.
+// Used to calculate average in O(1) memory
 char average_size = 0;
+double soil_moisture = 0;
 
 /* USER CODE END PV */
 
@@ -231,14 +232,14 @@ int main(void)
 	  }
 	   */
 
-	  printf("%u\n", (unsigned int)Request_Moisture_Data());
+	  if( average_size < 30 ) {
+		  ++average_size;
+		  uint16_t cum = Request_Moisture_Data();
+		  Average_Moisture_Data( &soil_moisture, average_size, cum );
 
-//	  if( average_size < 30 ) {
-//		  ++average_size;
-//		  Average_Moisture_Data( &soil_moisture, average_size, Request_Moisture_Data() );
-//
-//		  printf("%d\n", (int)soil_moisture);
-//	  }
+		  printf("%d ", (int)soil_moisture);
+		  printf("%d\n", cum );
+	  }
 
 	  HAL_Delay(10);
 
