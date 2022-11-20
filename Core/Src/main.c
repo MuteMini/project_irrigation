@@ -62,8 +62,9 @@ UART_HandleTypeDef huart2;
 
 /* 	Maximum available total moisture value to calculate moisture percentage
  	Calculated by (Max Volt / Nominal Reference) * 4092
+ 	Pin out Max Voltage, through testing, is about 2.2 volts
  	Nominal Reference Voltage is around 2.0~2.5 */
-const short MAX_MOISTURE = 3000;
+const short MAX_MOISTURE = 1800;
 
 // 	Represents button presses.
 char b_left_on = 0;
@@ -230,17 +231,21 @@ int main(void)
 	  if( time elapsed is 1 minute)
 	  {
 	  	  soil_moisture = 0;
-	  	  average_size = 0;
+	  	  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_SET );
+
+	  	  start polling for 30 seconds
 	  }
 	   */
 
+	  //average_size variable will be switched out with the timer code
 	  if( average_size < 30 ) {
+		  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_SET );
 		  ++average_size;
-		  uint16_t cum = Request_Moisture_Data();
-		  Average_Moisture_Data( &soil_moisture, average_size, cum );
+		  uint16_t cur_moist = Request_Moisture_Data(); //TEST CODE
+		  Average_Moisture_Data( &soil_moisture, average_size, cur_moist );
 
-		  printf("%d ", (int)soil_moisture);
-		  printf("%d\n", cum );
+		  printf("%d  ", (int)soil_moisture);//TEST CODE
+		  printf("%d\n", cur_moist);//TEST CODE
 	  }
 
 	  HAL_Delay(10);
