@@ -60,16 +60,18 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
-// Maximum available total moisture value to calculate moisture percentage
+/* 	Maximum available total moisture value to calculate moisture percentage
+ 	Calculated by (Max Volt / Nominal Reference) * 4092
+ 	Nominal Reference Voltage is around 2.0~2.5 */
 const short MAX_MOISTURE = 3000;
 
-// Represents button presses.
+// 	Represents button presses.
 char b_left_on = 0;
 char b_right_on = 0;
-// Represents what LED should be on for moisture sensor.
+// 	Represents what LED should be on for moisture sensor.
 char led_light = 2;
 
-// Used to calculate average in O(1) memory
+// 	Used to calculate average in O(1) memory
 char average_size = 0;
 double soil_moisture = 0;
 
