@@ -21,7 +21,6 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,7 +40,8 @@ char Moisture_Level_Vs_Threshold( uint16_t, uint16_t );
 void Open_Motor();
 
 //Helper Functions
-void Set_LED_Pin( char );
+void Set_LED_Pin( char, GPIO_PinState );
+short Increment_Timer( short );
 
 /* USER CODE END PD */
 
@@ -56,6 +56,8 @@ void Set_LED_Pin( char );
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
+TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -66,7 +68,12 @@ UART_HandleTypeDef huart2;
  	Nominal Reference Voltage is around 2.0~2.5 */
 const short MAX_MOISTURE = 1800;
 
-// 	Represents button presses.
+//	Calculates and stores how much time has passed
+uint16_t time_passed = 0;
+//	Holds a value between [0, 240): unit is 0.5s
+short time_count = 0;
+
+// 	Represents button presses using boolean values.
 char b_left_on = 0;
 char b_right_on = 0;
 // 	Represents what LED should be on for moisture sensor.
@@ -76,12 +83,16 @@ char led_light = 2;
 char average_size = 0;
 double soil_moisture = 0;
 
+// 	A boolean-type value to test if the MCU is polling the moisture sensor
+char is_polling = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM2_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -108,9 +119,9 @@ uint16_t Request_Moisture_Data()
  * 	@brief	Updates the average parameter given it's current size and new value
  * 			without storing into an array
  *
- *  @param[out]	average 	Average value being manipulated
- *	@param[in]	size		Number of variables currently averaged
- *	@param[in]	newVal		New value to be added to average
+ *  @param[in/out]	average 	Average value being manipulated
+ *	@param[in]		size		Number of variables currently averaged
+ *	@param[in]		newVal		New value to be added to average
  *
  *	@retval None
  */
@@ -119,22 +130,35 @@ void Average_Moisture_Data( double *average, char size, uint16_t newVal )
 	(*average) += (newVal - (*average)) / size;
 }
 
+/** @function	Adjustor_Change
+ *
+ * 	@brief	Generalizes the code to turn on and off LED values based on button
+ * 			inputs by passing certain variables through pointers.
+ *
+ *  @param[in]		BUTTON_PIN 	Holds the GPIO pin of the button
+ *	@param[in/out]	b_on		Used to only activate code on button's first press
+ *	@param[in]		increase	Determines if led_light is increased or deceased.
+ *
+ *	@retval None
+ */
 void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase ) 
 {
-	//checks if button is being pressed
+	//	If button is being pressed for the first time,
 	if( !HAL_GPIO_ReadPin( GPIOB, BUTTON_PIN ) && !(*b_on) )
 	{
-		//set variable as being pressed
+		//	Set button as being pressed
 		*b_on = 1;
 
-		//reset current pin
-		HAL_GPIO_WritePin( GPIOC, GPIO_PIN_All, GPIO_PIN_RESET );
+		//	Reset current pin
+		Set_LED_Pin( led_light, GPIO_PIN_RESET );
 
-		//change led_light according to increase variable and set the pin as on
+		//	Change led_light according to increase variable
 		led_light += (increase ? ADD_LED( led_light ) : MINUS_LED( led_light ));
-		Set_LED_Pin( led_light );
+
+		//	Sets new led pin on
+		Set_LED_Pin( led_light, GPIO_PIN_SET );
 	}
-	//if button is released, set b_on as being off
+	//	If button is released, set b_on as being off.
 	else if( HAL_GPIO_ReadPin( GPIOB, BUTTON_PIN ) )
 	{
 		*b_on = 0;
@@ -175,29 +199,63 @@ void Open_Motor()
 
 }
 
-void Set_LED_Pin( const char led_pin )
+/** @function	Set_LED_Pin
+ *
+ * 	@brief	Given a value from [0, 4], sets the representing LED pin
+ * 			to the given pin state.
+ *
+ *  @param	led_pin 	Holds a numerical representation of LED pins
+ *	@param	state		The new state of the led_pin
+ *
+ *	@retval None
+ */
+void Set_LED_Pin( const char led_pin, GPIO_PinState state )
 {
-	//checks if value (led_pin) is between correct range
+	//	Throws error if value (led_pin) is not in correct range
 	assert_param( led_pin >= 0 && led_pin <= 4 );
 
-	//maps the led_pin to pins that control LED
 	switch( led_pin ) {
 		case 0:
-			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_7, GPIO_PIN_SET );
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_7, state );
 			break;
 		case 1:
-			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_6, GPIO_PIN_SET );
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_6, state );
 			break;
 		case 2:
-			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_5, GPIO_PIN_SET );
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_5, state );
 			break;
 		case 3:
-			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_4, GPIO_PIN_SET );
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_4, state );
 			break;
 		case 4:
-			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_3, GPIO_PIN_SET );
+			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_3, state );
 			break;
 	}
+}
+
+/** @function	Increment_Timer
+ *
+ * 	@brief	Uses TIM to determine when to increment the timer_count
+ * 			variable every 0.5 seconds.
+ *
+ *  @param	poll 	Used to flicker on-board LED when polling occurs
+ *
+ *	@retval 1 if 0.5 seconds have passed, 0 if it hasn't.
+ */
+char Increment_Timer( char poll ){
+	if( __HAL_TIM_GET_COUNTER( &htim2 ) - time_passed >= 5000)
+	{
+		if( poll )
+		{
+			HAL_GPIO_TogglePin( GPIOA, GPIO_PIN_5 );
+		}
+
+		//	Resets time_passed if it goes beyond the TIM's full period
+		time_passed = ( __HAL_TIM_GET_COUNTER( &htim2 ) == htim2.Init.Period ) ?
+								0 : __HAL_TIM_GET_COUNTER( &htim2 );
+		return 1;
+	}
+	return 0;
 }
 
 /* USER CODE END 0 */
@@ -231,44 +289,71 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_TIM2_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
-  Set_LED_Pin( led_light );
+  //	Set default light to be set
+  Set_LED_Pin( led_light, GPIO_PIN_SET );
+
+  //	Timer start
+  HAL_TIM_Base_Start( &htim2 );
+
+  //	Get current time
+  time_passed = __HAL_TIM_GET_COUNTER(&htim2);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
   while (1)
   {
+	  //	Checks if buttons are being pressed and changes on LED pin
 	  Adjustor_Change( GPIO_PIN_4, &b_left_on, 0 );
 	  Adjustor_Change( GPIO_PIN_5, &b_right_on, 1 );
+    
+	  //	If enough time has passed (1 second), toggle LED and add a second to the timer variable
+	  time_count += Increment_Timer( is_polling );
 
-	  /*
-	  if( time elapsed is 1 minute)
+	  //	time_count [0, 60) => activate valve IF moisture is below threshold
+	  //	time_count [60, 120) => nothing happens
+	  //	time_count [120, 180) => poll moisture sensor
+	  if( time_count < 60 )
 	  {
-	  	  soil_moisture = 0;
-	  	  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_SET );
-
-	  	  start polling for 30 seconds
+		  //	Activate valve if moisture is below threshold
+		  Moisture_Level_Vs_Threshold();
 	  }
-	   */
+	  else if ( time_count < 120 )
+	  {
+		  //do nothing
+	  }
+	  else if ( time_count < 180 )
+	  {
+		  //	Initalizes polling process
+		  if ( time_count == 120 )
+		  {
+			  is_polling = 1;
+			  soil_moisture = 0;
+			  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_SET );
+		  }
 
-	  //average_size variable will be switched out with the timer code
-	  if( average_size < 30 ) {
-		  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_SET );
-		  ++average_size;
-		  uint16_t cur_moist = Request_Moisture_Data(); //TEST CODE
-		  Average_Moisture_Data( &soil_moisture, average_size, cur_moist );
+		  //	Calculates running moisture average
+		  uint16_t cur_moist = Request_Moisture_Data();
+		  Average_Moisture_Data( &soil_moisture, time_count-120, cur_moist );
 
-		  printf("%d  ", (int)soil_moisture);//TEST CODE
-		  printf("%d\n", cur_moist);//TEST CODE
+//		  printf("%d  ", (int)soil_moisture);
+//		  printf("%d\n", cur_moist);
+	  }
+	  else
+	  {
+		  //	Resets timer and stops polling process.
+		  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_RESET );
+		  is_polling = 0;
+		  time_count = 0;
 	  }
 
-	  HAL_Delay(10);
-
+	  HAL_Delay(1);
+    
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -298,9 +383,9 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 16;
-  RCC_OscInitStruct.PLL.PLLN = 336;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLM = 8;
+  RCC_OscInitStruct.PLL.PLLN = 84;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 7;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -375,6 +460,51 @@ static void MX_ADC1_Init(void)
 }
 
 /**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 8400-1;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 100000-1;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -429,6 +559,9 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, GPIO_PIN_RESET);
+
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
@@ -451,6 +584,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : PB13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
   /*Configure GPIO pins : PB4 PB5 */
   GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
@@ -469,6 +609,8 @@ int _write(int file, char *ptr, int len)
 	}
 	return len;
 }
+
+
 
 /* USER CODE END 4 */
 
