@@ -51,6 +51,8 @@ char Increment_Timer( char );
 #define ADD_LED(a) ((a < 4) ? 1 : 0)
 #define MINUS_LED(a) ((a > 0) ? -1 : 0)
 
+#define TIME_CHECK(a,b,c) (a >= b && a < c)
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -67,10 +69,10 @@ UART_HandleTypeDef huart2;
  	Calculated by (Max Volt / Nominal Reference) * 4092
  	Pin out Max Voltage, through testing, is about 2.2 volts
  	Nominal Reference Voltage is around 2.0~2.5 */
-const short MAX_MOISTURE = 1800;
+const short MAX_MOISTURE = 2700;
 
 //	Calculates and stores how much time has passed
-uint16_t time_passed = 0;
+uint32_t time_passed = 0;
 //	Holds a value between [0, 240): unit is 0.5s
 short time_count = 0;
 
@@ -82,6 +84,7 @@ char led_light = 2;
 
 // 	Used to calculate average in O(1) memory
 char average_size = 0;
+short average_tick = 0;
 double soil_moisture = 0;
 
 // 	A boolean-type value to test if the MCU is polling the moisture sensor
@@ -111,9 +114,9 @@ static void MX_TIM5_Init(void);
  */
 uint16_t Request_Moisture_Data()
 {
-	HAL_ADC_Start(&hadc1);
-	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-	return HAL_ADC_GetValue(&hadc1);
+	HAL_ADC_Start( &hadc1 );
+	HAL_ADC_PollForConversion( &hadc1, HAL_MAX_DELAY );
+	return HAL_ADC_GetValue( &hadc1 );
 }
 
 /** @function	Average_Moisture_Data
@@ -193,7 +196,7 @@ uint16_t Request_Moisture_Threshold( const char led_pin )
  */
 char Moisture_Level_Vs_Threshold( uint16_t moisture, uint16_t threshold )
 {
-	return moisture < threshold;
+	return (char)((int)moisture < threshold );
 }
 
 
@@ -214,11 +217,11 @@ void Set_Motor( char open )
 {
 	if( open )
 	{
-		__HAL_TIM_SET_COMPARE( &htim5, TIM_CHANNEL_2, 1500 );
+		__HAL_TIM_SET_COMPARE( &htim5, TIM_CHANNEL_2, 2100 );
 	}
 	else
 	{
-		__HAL_TIM_SET_COMPARE( &htim5, TIM_CHANNEL_2, 300 );
+		__HAL_TIM_SET_COMPARE( &htim5, TIM_CHANNEL_2, 500 );
 	}
 }
 
@@ -274,8 +277,11 @@ char Increment_Timer( char poll ){
 		}
 
 		//	Resets time_passed if it goes beyond the TIM's full period
-		time_passed = ( __HAL_TIM_GET_COUNTER( &htim2 ) == htim2.Init.Period ) ?
-								0 : __HAL_TIM_GET_COUNTER( &htim2 );
+		time_passed = __HAL_TIM_GET_COUNTER( &htim2 );
+		if( time_passed >= htim2.Init.Period )
+		{
+			time_passed = 0;
+		}
 		return 1;
 	}
 	return 0;
@@ -325,12 +331,10 @@ int main(void)
 
   //	Start PWM signal creation
   HAL_TIM_PWM_Start( &htim5, TIM_CHANNEL_2 );
-  //__HAL_TIM_SET_COMPARE( &htim5, TIM_CHANNEL_2, 500 );
+  Set_Motor( 0 );
 
   //	Get current time
-  time_passed = __HAL_TIM_GET_COUNTER(&htim2);
-
-  //htim5.Instance -> CCR1 = 50;
+  time_passed = __HAL_TIM_GET_COUNTER( &htim2 );
 
   /* USER CODE END 2 */
 
@@ -342,43 +346,43 @@ int main(void)
 	  Adjustor_Change( GPIO_PIN_4, &b_left_on, 0 );
 	  Adjustor_Change( GPIO_PIN_5, &b_right_on, 1 );
     
-	  //	If enough time has passed (1 second), toggle LED and add a second to the timer variable
+	  //	If enough time has passed (1 second), toggle LED and add a 1 to the timer variable
 	  time_count += Increment_Timer( is_polling );
 
 	  //	time_count [0, 60) => activate valve IF moisture is below threshold
 	  //	time_count [60, 120) => nothing happens
 	  //	time_count [120, 180) => poll moisture sensor
-	  if( time_count < 60 )
+	  if( time_count == 60 )
 	  {
-		  //	Activate valve if moisture is below threshold
+		  Set_Motor( 0 );
 	  }
-	  else if ( time_count < 120 )
+	  else if ( TIME_CHECK( time_count, 120, 180 ) )
 	  {
-		  //do nothing
-	  }
-	  else if ( time_count < 180 )
-	  {
-		  //	Initalizes polling process
-		  if ( time_count == 120 )
+		  if( time_count == 120 )
 		  {
+			  //	Initalizes polling process
 			  is_polling = 1;
 			  soil_moisture = 0;
+			  average_tick = 120;
+			  average_size = 0;
 			  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_SET );
 		  }
-
 		  //	Calculates running moisture average
-		  uint16_t cur_moist = Request_Moisture_Data();
-		  Average_Moisture_Data( &soil_moisture, time_count-120, cur_moist );
-
-//		  printf("%d  ", (int)soil_moisture);
-//		  printf("%d\n", cur_moist);
+		  if(time_count - average_tick >= 1)
+		  {
+			  average_tick = time_count;
+			  uint16_t cur_moist = Request_Moisture_Data();
+			  Average_Moisture_Data( &soil_moisture, ++average_size, cur_moist );
+		  }
 	  }
-	  else
+	  else if( time_count >= 180 )
 	  {
 		  //	Resets timer and stops polling process.
 		  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_RESET );
 		  is_polling = 0;
 		  time_count = 0;
+
+		  Set_Motor( Moisture_Level_Vs_Threshold( soil_moisture, Request_Moisture_Threshold( led_light ) ) );
 	  }
 
 	  HAL_Delay(1);
@@ -553,7 +557,7 @@ static void MX_TIM5_Init(void)
 
   /* USER CODE END TIM5_Init 1 */
   htim5.Instance = TIM5;
-  htim5.Init.Prescaler = 168-1;
+  htim5.Init.Prescaler = 84-1;
   htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim5.Init.Period = 10000-1;
   htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -641,8 +645,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6
-                          |GPIO_PIN_7, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0|GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5
+                          |GPIO_PIN_6|GPIO_PIN_7, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
@@ -656,10 +660,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PC3 PC4 PC5 PC6
-                           PC7 */
-  GPIO_InitStruct.Pin = GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6
-                          |GPIO_PIN_7;
+  /*Configure GPIO pins : PC0 PC3 PC4 PC5
+                           PC6 PC7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5
+                          |GPIO_PIN_6|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -697,8 +701,6 @@ int _write(int file, char *ptr, int len)
 	}
 	return len;
 }
-
-
 
 /* USER CODE END 4 */
 
