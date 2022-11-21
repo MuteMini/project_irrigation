@@ -331,13 +331,10 @@ int main(void)
 
   //	Start PWM signal creation
   HAL_TIM_PWM_Start( &htim5, TIM_CHANNEL_2 );
-  Set_Motor( 1 );
+  Set_Motor( 0 );
 
   //	Get current time
   time_passed = __HAL_TIM_GET_COUNTER( &htim2 );
-
-  //TEST
-  time_count = 110;
 
   /* USER CODE END 2 */
 
