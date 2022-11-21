@@ -177,9 +177,30 @@ void Moisture_Level_Vs_Threshold()
 
 }
 
-void Set_Motor( char openClose )
-{
 
+/** @function	Set_Motor
+ *
+ * 	@brief	Sets the motor at either 0 or 180 degrees given the open
+ * 			variable. Uses the PWM signal generator to achieve this.
+ *
+ * 			Prescaler: 168-1 	=> 	84 000 000 / 168 = 500 000
+ * 			Frequency: 10000-1 	=> 	500 000 / 10000 = 50hz
+ * 			[500, 1000]
+ *
+ *  @param	open 	Determines if the motor should be on of off.
+ *
+ *	@retval None
+ */
+void Set_Motor( char open )
+{
+	if( open )
+	{
+		__HAL_TIM_SET_COMPARE( &htim5, TIM_CHANNEL_2, 1500 );
+	}
+	else
+	{
+		__HAL_TIM_SET_COMPARE( &htim5, TIM_CHANNEL_2, 300 );
+	}
 }
 
 /** @function	Set_LED_Pin
@@ -298,20 +319,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
-
-	  //TESTING CODE
-
-	  //prescaler: 168-1 => 84 000 000 / 168 = 500 000
-	  //frequency: 10000 => 500 000 / 10000 = 50hz
-	  // [500, 2500]
-	  __HAL_TIM_SET_COMPARE( &htim5, TIM_CHANNEL_2, 300 );
-	  HAL_Delay(1000);
-	  __HAL_TIM_SET_COMPARE( &htim5, TIM_CHANNEL_2, 1500 );
-	  HAL_Delay(1000);
-
-
-
 	  //	Checks if buttons are being pressed and changes on LED pin
 	  Adjustor_Change( GPIO_PIN_4, &b_left_on, 0 );
 	  Adjustor_Change( GPIO_PIN_5, &b_right_on, 1 );
