@@ -51,13 +51,15 @@ char Increment_Timer( char );
 #define ADD_LED(a) ((a < 4) ? 1 : 0)
 #define MINUS_LED(a) ((a > 0) ? -1 : 0)
 
+#define TIME_CHECK(a,b,c) ( a >= b && a < c )
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
+TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
-TIM_HandleTypeDef htim5;
 
 UART_HandleTypeDef huart2;
 
@@ -70,7 +72,7 @@ UART_HandleTypeDef huart2;
 const short MAX_MOISTURE = 1800;
 
 //	Calculates and stores how much time has passed
-uint16_t time_passed = 0;
+uint32_t time_passed = 0;
 //	Holds a value between [0, 240): unit is 0.5s
 short time_count = 0;
 
@@ -95,7 +97,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_ADC1_Init(void);
-static void MX_TIM5_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -214,11 +216,11 @@ void Set_Motor( char open )
 {
 	if( open )
 	{
-		__HAL_TIM_SET_COMPARE( &htim5, TIM_CHANNEL_2, 1500 );
+		__HAL_TIM_SET_COMPARE( &htim1, TIM_CHANNEL_2, 1500 );
 	}
 	else
 	{
-		__HAL_TIM_SET_COMPARE( &htim5, TIM_CHANNEL_2, 300 );
+		__HAL_TIM_SET_COMPARE( &htim1, TIM_CHANNEL_2, 300 );
 	}
 }
 
@@ -274,8 +276,11 @@ char Increment_Timer( char poll ){
 		}
 
 		//	Resets time_passed if it goes beyond the TIM's full period
-		time_passed = ( __HAL_TIM_GET_COUNTER( &htim2 ) == htim2.Init.Period ) ?
-								0 : __HAL_TIM_GET_COUNTER( &htim2 );
+		time_passed = __HAL_TIM_GET_COUNTER( &htim2 );
+		if( time_passed >= htim2.Init.Period )
+		{
+			time_passed = 0;
+		}
 		return 1;
 	}
 	return 0;
@@ -314,7 +319,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM2_Init();
   MX_ADC1_Init();
-  MX_TIM5_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
   //	Set default light to be set
@@ -324,11 +329,11 @@ int main(void)
   HAL_TIM_Base_Start( &htim2 );
 
   //	Start PWM signal creation
-  HAL_TIM_PWM_Start( &htim5, TIM_CHANNEL_2 );
-  //__HAL_TIM_SET_COMPARE( &htim5, TIM_CHANNEL_2, 500 );
+  HAL_TIM_PWM_Start( &htim1, TIM_CHANNEL_2 );
+  Set_Motor( 0 );
 
   //	Get current time
-  time_passed = __HAL_TIM_GET_COUNTER(&htim2);
+  time_passed = __HAL_TIM_GET_COUNTER( &htim2 );
 
   //htim5.Instance -> CCR1 = 50;
 
@@ -342,43 +347,43 @@ int main(void)
 	  Adjustor_Change( GPIO_PIN_4, &b_left_on, 0 );
 	  Adjustor_Change( GPIO_PIN_5, &b_right_on, 1 );
     
-	  //	If enough time has passed (1 second), toggle LED and add a second to the timer variable
+	  //	If enough time has passed (1 second), toggle LED and add a 1 to the timer variable
 	  time_count += Increment_Timer( is_polling );
 
 	  //	time_count [0, 60) => activate valve IF moisture is below threshold
 	  //	time_count [60, 120) => nothing happens
 	  //	time_count [120, 180) => poll moisture sensor
-	  if( time_count < 60 )
+	  if( time_count == 60 )
 	  {
-		  //	Activate valve if moisture is below threshold
+		  Set_Motor( 0 );
 	  }
-	  else if ( time_count < 120 )
-	  {
-		  //do nothing
-	  }
-	  else if ( time_count < 180 )
+	  else if( time_count == 120 )
 	  {
 		  //	Initalizes polling process
-		  if ( time_count == 120 )
-		  {
-			  is_polling = 1;
-			  soil_moisture = 0;
-			  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_SET );
-		  }
-
+		  is_polling = 1;
+		  soil_moisture = 0;
+		  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_SET );
+	  }
+	  else if ( TIME_CHECK( time_count, 120, 180 ) )
+	  {
 		  //	Calculates running moisture average
 		  uint16_t cur_moist = Request_Moisture_Data();
-		  Average_Moisture_Data( &soil_moisture, time_count-120, cur_moist );
-
-//		  printf("%d  ", (int)soil_moisture);
-//		  printf("%d\n", cur_moist);
+		  Average_Moisture_Data( &soil_moisture, time_count - 120, cur_moist );
 	  }
-	  else
+	  else if( time_count >= 180 )
 	  {
 		  //	Resets timer and stops polling process.
 		  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_RESET );
 		  is_polling = 0;
 		  time_count = 0;
+
+		  Set_Motor( Moisture_Level_Vs_Threshold( soil_moisture, Request_Moisture_Threshold( led_light ) ) );
+	  }
+
+	  if( time_count % 2 == 0 ) {
+//		  printf("%d ", time_count);
+//		  printf("%d ", led_light);
+//		  printf("%d \n", soil_moisture);
 	  }
 
 	  HAL_Delay(1);
@@ -489,6 +494,81 @@ static void MX_ADC1_Init(void)
 }
 
 /**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 84-1;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 10000-1;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_OC_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_TIMING;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+  HAL_TIM_MspPostInit(&htim1);
+
+}
+
+/**
   * @brief TIM2 Initialization Function
   * @param None
   * @retval None
@@ -530,65 +610,6 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
-
-}
-
-/**
-  * @brief TIM5 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM5_Init(void)
-{
-
-  /* USER CODE BEGIN TIM5_Init 0 */
-
-  /* USER CODE END TIM5_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
-
-  /* USER CODE BEGIN TIM5_Init 1 */
-
-  /* USER CODE END TIM5_Init 1 */
-  htim5.Instance = TIM5;
-  htim5.Init.Prescaler = 168-1;
-  htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim5.Init.Period = 10000-1;
-  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim5, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_Init(&htim5) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim5, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM5_Init 2 */
-
-  /* USER CODE END TIM5_Init 2 */
-  HAL_TIM_MspPostInit(&htim5);
 
 }
 
@@ -641,8 +662,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6
-                          |GPIO_PIN_7, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0|GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5
+                          |GPIO_PIN_6|GPIO_PIN_7, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
@@ -656,10 +677,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PC3 PC4 PC5 PC6
-                           PC7 */
-  GPIO_InitStruct.Pin = GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6
-                          |GPIO_PIN_7;
+  /*Configure GPIO pins : PC0 PC3 PC4 PC5
+                           PC6 PC7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5
+                          |GPIO_PIN_6|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
