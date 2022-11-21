@@ -119,9 +119,9 @@ uint16_t Request_Moisture_Data()
  * 	@brief	Updates the average parameter given it's current size and new value
  * 			without storing into an array
  *
- *  @param[out]	average 	Average value being manipulated
- *	@param[in]	size		Number of variables currently averaged
- *	@param[in]	newVal		New value to be added to average
+ *  @param[in/out]	average 	Average value being manipulated
+ *	@param[in]		size		Number of variables currently averaged
+ *	@param[in]		newVal		New value to be added to average
  *
  *	@retval None
  */
@@ -130,22 +130,35 @@ void Average_Moisture_Data( double *average, char size, uint16_t newVal )
 	(*average) += (newVal - (*average)) / size;
 }
 
+/** @function	Adjustor_Change
+ *
+ * 	@brief	Generalizes the code to turn on and off LED values based on button
+ * 			inputs by passing certain variables through pointers.
+ *
+ *  @param[in]		BUTTON_PIN 	Holds the GPIO pin of the button
+ *	@param[in/out]	b_on		Used to only activate code on button's first press
+ *	@param[in]		increase	Determines if led_light is increased or deceased.
+ *
+ *	@retval None
+ */
 void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase ) 
 {
-	//checks if button is being pressed
+	//	If button is being pressed for the first time,
 	if( !HAL_GPIO_ReadPin( GPIOB, BUTTON_PIN ) && !(*b_on) )
 	{
-		//set variable as being pressed
+		//	Set button as being pressed
 		*b_on = 1;
 
-		//reset current pin
+		//	Reset current pin
 		Set_LED_Pin( led_light, GPIO_PIN_RESET );
 
-		//change led_light according to increase variable and set the pin as on
+		//	Change led_light according to increase variable
 		led_light += (increase ? ADD_LED( led_light ) : MINUS_LED( led_light ));
+
+		//	Sets new led pin on
 		Set_LED_Pin( led_light, GPIO_PIN_SET );
 	}
-	//if button is released, set b_on as being off.
+	//	If button is released, set b_on as being off.
 	else if( HAL_GPIO_ReadPin( GPIOB, BUTTON_PIN ) )
 	{
 		*b_on = 0;
@@ -167,12 +180,21 @@ void Open_Motor()
 
 }
 
+/** @function	Set_LED_Pin
+ *
+ * 	@brief	Given a value from [0, 4], sets the representing LED pin
+ * 			to the given pin state.
+ *
+ *  @param	led_pin 	Holds a numerical representation of LED pins
+ *	@param	state		The new state of the led_pin
+ *
+ *	@retval None
+ */
 void Set_LED_Pin( const char led_pin, GPIO_PinState state )
 {
-	//checks if value (led_pin) is between correct range
+	//	Throws error if value (led_pin) is not in correct range
 	assert_param( led_pin >= 0 && led_pin <= 4 );
 
-	//maps the led_pin to pins that control LED
 	switch( led_pin ) {
 		case 0:
 			HAL_GPIO_WritePin( GPIOC, GPIO_PIN_7, state );
@@ -192,6 +214,15 @@ void Set_LED_Pin( const char led_pin, GPIO_PinState state )
 	}
 }
 
+/** @function	Increment_Timer
+ *
+ * 	@brief	Uses TIM to determine when to increment the timer_count
+ * 			variable every 0.5 seconds.
+ *
+ *  @param	poll 	Used to flicker on-board LED when polling occurs
+ *
+ *	@retval 1 if 0.5 seconds have passed, 0 if it hasn't.
+ */
 char Increment_Timer( char poll ){
 	if( __HAL_TIM_GET_COUNTER( &htim2 ) - time_passed >= 5000)
 	{
@@ -200,6 +231,7 @@ char Increment_Timer( char poll ){
 			HAL_GPIO_TogglePin( GPIOA, GPIO_PIN_5 );
 		}
 
+		//	Resets time_passed if it goes beyond the TIM's full period
 		time_passed = ( __HAL_TIM_GET_COUNTER( &htim2 ) == htim2.Init.Period ) ?
 								0 : __HAL_TIM_GET_COUNTER( &htim2 );
 		return 1;
@@ -257,19 +289,19 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  //Checks if buttons are being pressed and changes on LED pin
+	  //	Checks if buttons are being pressed and changes on LED pin
 	  Adjustor_Change( GPIO_PIN_4, &b_left_on, 0 );
 	  Adjustor_Change( GPIO_PIN_5, &b_right_on, 1 );
     
-	  //If enough time has passed (1 second), toggle LED and add a second to the timer variable
+	  //	If enough time has passed (1 second), toggle LED and add a second to the timer variable
 	  time_count += Increment_Timer( is_polling );
 
-	  //timer [0, 60) => activate valve IF moisture is below threshold
-	  //timer [0, 120) => nothing happens
-	  //timer [120, 180) => poll moisture sensor
+	  //	time_count [0, 60) => activate valve IF moisture is below threshold
+	  //	time_count [60, 120) => nothing happens
+	  //	time_count [120, 180) => poll moisture sensor
 	  if( time_count < 60 )
 	  {
-		  //activate valve if moisture is below threshold, and data is available
+		  //	Activate valve if moisture is below threshold
 		  Moisture_Level_Vs_Threshold();
 	  }
 	  else if ( time_count < 120 )
@@ -278,6 +310,7 @@ int main(void)
 	  }
 	  else if ( time_count < 180 )
 	  {
+		  //	Initalizes polling process
 		  if ( time_count == 120 )
 		  {
 			  is_polling = 1;
@@ -285,6 +318,7 @@ int main(void)
 			  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_SET );
 		  }
 
+		  //	Calculates running moisture average
 		  uint16_t cur_moist = Request_Moisture_Data();
 		  Average_Moisture_Data( &soil_moisture, time_count-120, cur_moist );
 
@@ -293,6 +327,7 @@ int main(void)
 	  }
 	  else
 	  {
+		  //	Resets timer and stops polling process.
 		  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_RESET );
 		  is_polling = 0;
 		  time_count = 0;
