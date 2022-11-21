@@ -41,7 +41,7 @@ void Open_Motor();
 
 //Helper Functions
 void Set_LED_Pin( char, GPIO_PinState );
-short Return_A_Second( short );
+short Increment_Timer( short );
 
 /* USER CODE END PD */
 
@@ -68,16 +68,23 @@ UART_HandleTypeDef huart2;
  	Nominal Reference Voltage is around 2.0~2.5 */
 const short MAX_MOISTURE = 1800;
 
-// 	Represents button presses.
+//	Calculates and stores how much time has passed
+uint16_t time_passed = 0;
+//	Holds a value between [0, 240): unit is 0.5s
+short time_count = 0;
+
+// 	Represents button presses using boolean values.
 char b_left_on = 0;
 char b_right_on = 0;
 // 	Represents what LED should be on for moisture sensor.
 char led_light = 2;
-uint32_t timer_val;
 
 // 	Used to calculate average in O(1) memory
 char average_size = 0;
 double soil_moisture = 0;
+
+// 	A boolean-type value to test if the MCU is polling the moisture sensor
+char is_polling = 0;
 
 /* USER CODE END PV */
 
@@ -85,8 +92,8 @@ double soil_moisture = 0;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
-static void MX_ADC1_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -186,19 +193,16 @@ void Set_LED_Pin( const char led_pin, GPIO_PinState state )
 }
 
 char Increment_Timer( char poll ){
-	if( __HAL_TIM_GET_COUNTER( &htim2 ) - timer_val >= 5000)
+	if( __HAL_TIM_GET_COUNTER( &htim2 ) - time_passed >= 5000)
 	{
-		if(poll)
+		if( poll )
 		{
 			HAL_GPIO_TogglePin( GPIOA, GPIO_PIN_5 );
 		}
-		timer_val = __HAL_TIM_GET_COUNTER( &htim2 );
-		if( timer_val == htim2.Init.Period )
-		{
-			timer_val = 0;
-		}
+
+		time_passed = ( __HAL_TIM_GET_COUNTER( &htim2 ) == htim2.Init.Period ) ?
+								0 : __HAL_TIM_GET_COUNTER( &htim2 );
 		return 1;
-		//printf("%d\n", timer_val);
 	}
 	return 0;
 }
@@ -212,11 +216,6 @@ char Increment_Timer( char poll ){
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	int timer;
-	char polling;
-	char data_is_available;
-	int moisture_data;
-
 
   /* USER CODE END 1 */
 
@@ -239,21 +238,18 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
-  MX_ADC1_Init();
   MX_TIM2_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
-  //Timer start
-  HAL_TIM_Base_Start( &htim2 );
+  //	Set default light to be set
   Set_LED_Pin( led_light, GPIO_PIN_SET );
-  timer = 0;
 
-  //Get current time
-  timer_val = __HAL_TIM_GET_COUNTER(&htim2);
+  //	Timer start
+  HAL_TIM_Base_Start( &htim2 );
 
-  polling = 0;
-  data_is_available = 0;
-  moisture_data = 0;
+  //	Get current time
+  time_passed = __HAL_TIM_GET_COUNTER(&htim2);
 
   /* USER CODE END 2 */
 
@@ -261,58 +257,45 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  //Checks if buttons are being pressed and changes on LED pin
 	  Adjustor_Change( GPIO_PIN_4, &b_left_on, 0 );
 	  Adjustor_Change( GPIO_PIN_5, &b_right_on, 1 );
-	  /*
-	  if( time elapsed is 1 minute)
-	  {
-	  	  soil_moisture = 0;
-	  	  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_SET );
-
-	  	  start polling for 30 seconds
-	  }
-	   */
-
-	  //average_size variable will be switched out with the timer code
-	  if( average_size < 30 ) {
-		  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_SET );
-		  ++average_size;
-		  uint16_t cur_moist = Request_Moisture_Data(); //TEST CODE
-		  Average_Moisture_Data( &soil_moisture, average_size, cur_moist );
-
-		  printf("%d  ", (int)soil_moisture);//TEST CODE
-		  printf("%d\n", cur_moist);//TEST CODE
-	  }
     
 	  //If enough time has passed (1 second), toggle LED and add a second to the timer variable
-	  timer += Increment_Timer(polling);
-	  //change the name to get_a_second or smth
-	  printf(timer+"\n");
+	  time_count += Increment_Timer( is_polling );
 
-	  //timer [0, 180) EACH NUMBER = 1/2s
-
-	  //timer [0, 60) => 30s => activate valve IF moisture is below threshold
-	  //timer [0, 120) => minute =>  we do nothing => only let moisture change
-	  //timer [120, 180) => 30s => we poll
-
-	  if( timer < 60 && data_is_available)
+	  //timer [0, 60) => activate valve IF moisture is below threshold
+	  //timer [0, 120) => nothing happens
+	  //timer [120, 180) => poll moisture sensor
+	  if( time_count < 60 )
 	  {
 		  //activate valve if moisture is below threshold, and data is available
 		  Moisture_Level_Vs_Threshold();
 	  }
-	  else if (timer < 120 )
+	  else if ( time_count < 120 )
 	  {
 		  //do nothing
 	  }
-	  else if (timer < 180 )
+	  else if ( time_count < 180 )
 	  {
-		  //poll for moisture data
-		  Request_Moisture_Data();
-		  data_is_available = 1;
+		  if ( time_count == 120 )
+		  {
+			  is_polling = 1;
+			  soil_moisture = 0;
+			  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_SET );
+		  }
+
+		  uint16_t cur_moist = Request_Moisture_Data();
+		  Average_Moisture_Data( &soil_moisture, time_count-120, cur_moist );
+
+//		  printf("%d  ", (int)soil_moisture);
+//		  printf("%d\n", cur_moist);
 	  }
-	  else if (timer >= 180 )
+	  else
 	  {
-		  timer = 0;
+		  HAL_GPIO_WritePin( GPIOC, GPIO_PIN_0, GPIO_PIN_RESET );
+		  is_polling = 0;
+		  time_count = 0;
 	  }
 
 	  HAL_Delay(1);
@@ -420,6 +403,8 @@ static void MX_ADC1_Init(void)
 
   /* USER CODE END ADC1_Init 2 */
 
+}
+
 /**
   * @brief TIM2 Initialization Function
   * @param None
@@ -441,7 +426,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 8400-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 100000;
+  htim2.Init.Period = 100000-1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -462,6 +447,7 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+
 }
 
 /**
