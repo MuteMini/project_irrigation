@@ -35,8 +35,8 @@
 uint16_t Request_Moisture_Data( void );
 void Average_Moisture_Data( double*, char, uint16_t );
 void Adjustor_Change( const uint16_t, char *, const char );
-void Request_Moisture_Threshold();
-void Moisture_Level_Vs_Threshold();
+uint16_t Request_Moisture_Threshold( const char led_pin );
+char Moisture_Level_Vs_Threshold( uint16_t, uint16_t );
 void Open_Motor();
 
 //Helper Functions
@@ -165,14 +165,33 @@ void Adjustor_Change( const uint16_t BUTTON_PIN, char *b_on, const char increase
 	}
 }
 
-void Request_Moisture_Threshold()
+/** @function	Request_Moisture_Threshold
+ *
+ * 	@brief	Given the LED pin representative number (from led_light)
+ * 			returns the corresponding moisture value to compare with
+ *
+ *  @param	led_pin		What LED pin is on
+ *
+ *	@retval Exact moisture threshold determined by LED_Pin
+ */
+uint16_t Request_Moisture_Threshold( const char led_pin )
 {
-
+	return MAX_MOISTURE*(2 + led_pin)/10;
 }
 
-void Moisture_Level_Vs_Threshold()
+/** @function	Moisture_Level_Vs_Threshold
+ *
+ * 	@brief	Compares moisture level and threshold and returns a value to
+ * 			give for that.
+ *
+ *  @param 	moisture	The average moisture value from the moisture sensor
+ *	@param	threshold	The threshold value that the LED currently represents
+ *
+ *	@retval Boolean value that equals if moisture is below threshold
+ */
+char Moisture_Level_Vs_Threshold( uint16_t moisture, uint16_t threshold )
 {
-
+	return moisture < threshold;
 }
 
 void Open_Motor()
