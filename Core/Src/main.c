@@ -351,7 +351,6 @@ int main(void)
 	  if( time_count < 60 )
 	  {
 		  //	Activate valve if moisture is below threshold
-		  Moisture_Level_Vs_Threshold();
 	  }
 	  else if ( time_count < 120 )
 	  {
